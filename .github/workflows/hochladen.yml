@@ -1,0 +1,40 @@
+name: App hochladen
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  hochladen:
+    runs-on: ubuntu-latest
+    env:
+      KONTO: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+    steps:
+      - name: Zugang vorhanden?
+        if: env.KONTO == ''
+        run: echo "Noch kein FIREBASE_SERVICE_ACCOUNT hinterlegt, es wird nichts hochgeladen."
+      - uses: actions/checkout@v4
+        if: env.KONTO != ''
+      - uses: actions/setup-node@v4
+        if: env.KONTO != ''
+        with:
+          node-version: 22
+      - name: App und Regeln hochladen
+        if: env.KONTO != ''
+        run: |
+          printf '%s' "$KONTO" > "$RUNNER_TEMP/konto.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/konto.json"
+          PROJEKT=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS)).project_id)")
+          npx --yes firebase-tools@13.29.1 deploy --only hosting,firestore:rules --project "$PROJEKT" --non-interactive
+      - name: Neue Vorschläge einspielen
+        if: env.KONTO != ''
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          cd werkzeug/einspielen
+          npm install --no-audit --no-fund
+          node einspielen.mjs
+      - name: Aufräumen
+        if: always()
+        run: rm -f "$RUNNER_TEMP/konto.json"
