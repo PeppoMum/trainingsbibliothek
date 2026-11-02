@@ -44,8 +44,6 @@ async function starteFirebase() {
     import(SDK + 'firebase-app.js'), import(SDK + 'firebase-firestore.js'), import(SDK + 'firebase-auth.js'),
   ]);
   const cfg = { ...FIREBASE_CONFIG };
-  // Anmeldung über die eigene Adresse laufen lassen (wichtig für Safari/iPhone)
-  if (/\.(web\.app|firebaseapp\.com)$/.test(location.hostname)) cfg.authDomain = location.hostname;
   const app = initializeApp(cfg);
   let db;
   try {
