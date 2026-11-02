@@ -25,7 +25,20 @@ def text_of(el):
 
 def parse_page(path):
     d = os.path.dirname(path)
-    soup = BeautifulSoup(open(path, encoding='utf-8').read(), 'html.parser')
+    roh = open(path, encoding='utf-8').read()
+    if '<body' not in roh:
+        roh = '<html><body>' + re.sub(r'^HEAD', '', roh) + '</body></html>'
+    soup = BeautifulSoup(roh, 'html.parser')
+    for x in soup.find_all(['style', 'script', 'head']):
+        x.decompose()
+    for x in soup.find_all('span', class_='min'):
+        x.decompose()  # Minutenangabe gehört nicht in den Titel
+    # Torwarttraining: ab der Überschrift „TWT“ alles weg
+    for x in soup.find_all('p', class_='t'):
+        if x.parent is soup.body and x.get_text(strip=True) == 'TWT':
+            for y in list(x.find_next_siblings()):
+                y.decompose()
+            x.decompose()
     h1 = soup.find('h1')
     kopf = text_of(h1) if h1 else ''
     sp = soup.find('p', class_='sp')
@@ -56,6 +69,16 @@ def parse_page(path):
         # CP-Abschnitte
         for cpp in target.find_all('p', class_='cp'):
             par = cpp.parent
+            if par is None:
+                continue  # schon mit einem anderen CP-Abschnitt entfernt
+            if par is target or 'row' in (par.get('class') or []):
+                # CP steht direkt im Block: nur die folgende Liste gehört dazu
+                ul = cpp.find_next_sibling('ul')
+                items = [text_of(li) for li in ul.find_all('li')] if ul is not None else []
+                cur['teile'].append({'art': 'cp', 'zeilen': items, '_pos': POS.get(id(cpp), 10**6)})
+                if ul is not None: ul.decompose()
+                cpp.decompose()
+                continue
             items = [text_of(li) for li in par.find_all('li')]
             extra = [text_of(p) for p in par.find_all('p') if p is not cpp]
             cur['teile'].append({'art': 'cp', 'zeilen': extra + items, '_pos': POS.get(id(par), 10**6)})

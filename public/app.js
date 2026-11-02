@@ -30,12 +30,13 @@ function saisonVon(iso) { const e = einheitVon(iso); return e ? e.saison : ''; }
 function saisonenVonKarte(u) { return [...new Set(u.varianten.map(v => (einheitVon(v.einheit) || {}).saison).filter(Boolean))]; }
 
 // ---------- Filter (bleiben während der Sitzung erhalten) ----------
-const filter = { jugend: [], saison: [], qualitaet: [], teil: [], form: [], zahl: [], art: [], ort: [] };
+const filter = { schwerpunkt: [], jugend: [], saison: [], qualitaet: [], teil: [], form: [], zahl: [], art: [], ort: [] };
 const filterAktiv = () => Object.values(filter).some(v => v.length);
 function passtFilter(u) {
   const m = u.merkmale || {};
   const hat = (liste, werte) => !liste.length || liste.some(x => werte.includes(x));
-  return hat(filter.jugend, u.jugend || []) && hat(filter.saison, saisonenVonKarte(u)) && hat(filter.qualitaet, [u.qualitaet])
+  const sw = [m.hauptschwerpunkt, ...(m.schwerpunkte || [])].filter(Boolean);
+  return hat(filter.schwerpunkt, sw) && hat(filter.jugend, u.jugend || []) && hat(filter.saison, saisonenVonKarte(u)) && hat(filter.qualitaet, [u.qualitaet])
     && hat(filter.teil, teileVonKarte(u)) && hat(filter.form, [u.form]) && hat(filter.zahl, m.zahl || [])
     && hat(filter.art, [m.artSpielform]) && hat(filter.ort, m.ort || []);
 }
@@ -110,6 +111,12 @@ function seiteGruppe(name) {
   }).join('')}</div>`;
 }
 
+function einheitenMitSchwerpunkt(wert) {
+  const E = daten.einheiten.filter(sichtbar).filter(e => (e.schwerpunkte || []).includes(wert))
+    .filter(e => (!filter.saison.length || filter.saison.includes(e.saison)) && (!filter.jugend.length || filter.jugend.includes(e.jugend)) && (!filter.qualitaet.length || filter.qualitaet.includes(e.qualitaet)))
+    .sort((a, b) => b.datum.localeCompare(a.datum));
+  return E.length ? `<section class="abschnitt"><h2>Ganze Einheiten mit diesem Schwerpunkt</h2><div class="gruppe">${E.map(einheitZeile).join('')}</div></section>` : '';
+}
 function seiteListe(typ, wert) {
   let U = daten.uebungen.filter(sichtbar).filter(passtFilter);
   let titel = wert, zurueckHref = '#/';
@@ -121,7 +128,8 @@ function seiteListe(typ, wert) {
     if (g && !(g.punkte.length === 1 && g.punkte[0][0] === g.name)) zurueckHref = `#/gruppe/${enc(g.name)}`;
     return `<div class="kopf">${zurueck(g && zurueckHref !== '#/' ? g.name : 'Start', zurueckHref)}<div class="kopfzeile"><h1>${esc(wert)}</h1><a class="knopf-icon" href="#/filter" aria-label="Filter">${ico.filter}${filterAktiv() ? '<span class="punkt"></span>' : ''}</a></div></div>${filterHinweis()}
     <section class="abschnitt"><h2>Als Haupt-Schwerpunkt</h2>${uebungsListe(haupt)}</section>
-    ${weitere.length ? `<section class="abschnitt"><h2>Als weiterer Schwerpunkt</h2>${uebungsListe(weitere)}</section>` : ''}`;
+    ${weitere.length ? `<section class="abschnitt"><h2>Als weiterer Schwerpunkt</h2>${uebungsListe(weitere)}</section>` : ''}
+    ${einheitenMitSchwerpunkt(wert)}`;
   }
   else if (typ === 'form') U = U.filter(u => u.form === wert);
   else if (typ === 'zahl') U = U.filter(u => (u.merkmale?.zahl || []).includes(wert));
@@ -227,7 +235,7 @@ function einheitKopf(e, zurueckText, zurueckHref) {
   const chips = [e.mannschaft, jugendText(e.jugend), e.spieler, e.nummer, 'Qualität ' + e.qualitaet].filter(Boolean).map(c => `<span class="chip">${esc(c)}</span>`).join('')
     + (e.status === 'vorschlag' && istAdmin() ? '<span class="chip vorschlag">Vorschlag</span>' : '');
   return `<div class="kopf">${zurueck(zurueckText, zurueckHref)}<span class="unter">Saison ${esc(e.saison)} · ${wochentag(e.datum)}${e.art === 'Trainingslager' ? ' · Trainingslager' : ''}</span>
-  <h1>${datumDE(e.datum)}</h1><div class="chips">${chips}</div>${e.schwerpunkt ? `<span><span class="unter" style="font-size:14px">Schwerpunkt</span> · ${esc(e.schwerpunkt)}</span>` : ''}</div>`;
+  <h1>${datumDE(e.datum)}</h1><div class="chips">${chips}</div>${e.schwerpunkt ? `<span><span class="unter" style="font-size:14px">Schwerpunkt</span> · ${esc(e.schwerpunkt)}</span>` : ''}${(e.schwerpunkte || []).length ? `<div class="chips">${e.schwerpunkte.map(s => `<a class="chip ac" href="#/liste/schwerpunkt/${enc(s)}" style="text-decoration:none">${esc(s)}</a>`).join('')}</div>` : ''}</div>`;
 }
 function qualitaetWahl(art, obj) {
   return `<section class="abschnitt"><h2>Qualität ändern</h2><div class="wahl klein" role="group" aria-label="Qualität">${QUALITAETEN.map(q => `<button type="button" data-qualitaet="${art}|${esc(obj.id)}|${q}" aria-pressed="${obj.qualitaet === q}">${q}</button>`).join('')}</div></section>`;
@@ -238,7 +246,11 @@ function seiteEinheit(id) {
   if (!e || !sichtbar(e)) return seiteFehlt();
   return `${einheitKopf(e, 'Einheiten', '#/einheiten')}${bausteinListe(e)}
   <a class="knopf breit" href="#/einheit/${enc(e.id)}/ganz">${ico.seite}Ganze Trainingseinheit ansehen</a>
-  ${istAdmin() ? qualitaetWahl('e', e) : ''}`;
+  ${istAdmin() ? schwerpunktWahlEinheit(e) + qualitaetWahl('e', e) : ''}`;
+}
+function schwerpunktWahlEinheit(e) {
+  const akt = e.schwerpunkte || [];
+  return `<section class="abschnitt"><h2>Schwerpunkt der Einheit (für den Filter)</h2><div class="wahl klein" role="group" aria-label="Schwerpunkt der Einheit">${ALLE_SCHWERPUNKTE.map(w => `<button type="button" data-esp="${esc(e.id)}|${esc(w)}" aria-pressed="${akt.includes(w)}">${esc(w)}</button>`).join('')}</div></section>`;
 }
 
 function seiteEinheitGanz(id) {
@@ -257,7 +269,7 @@ function seiteEinheitGanz(id) {
 }
 
 function seiteEinheiten() {
-  const E = daten.einheiten.filter(sichtbar).filter(e => !filter.saison.length || filter.saison.includes(e.saison)).filter(e => !filter.jugend.length || filter.jugend.includes(e.jugend)).filter(e => !filter.qualitaet.length || filter.qualitaet.includes(e.qualitaet));
+  const E = daten.einheiten.filter(sichtbar).filter(e => !filter.schwerpunkt.length || filter.schwerpunkt.some(s => (e.schwerpunkte || []).includes(s))).filter(e => !filter.saison.length || filter.saison.includes(e.saison)).filter(e => !filter.jugend.length || filter.jugend.includes(e.jugend)).filter(e => !filter.qualitaet.length || filter.qualitaet.includes(e.qualitaet));
   const saisons = [...new Set(E.map(e => e.saison))].sort().reverse();
   return `<div class="kopf"><h1>Einheiten</h1>${sucheLeiste()}</div>${filterHinweis()}
   ${E.length ? saisons.map(s => `<section class="abschnitt"><h2>Saison ${esc(s)}</h2><div class="gruppe">${E.filter(e => e.saison === s).sort((a, b) => b.datum.localeCompare(a.datum)).map(einheitZeile).join('')}</div></section>`).join('') : '<div class="leer">Noch keine Einheiten aufgenommen.</div>'}`;
@@ -267,6 +279,7 @@ function seiteFilter() {
   const saisons = [...new Set(daten.einheiten.map(e => e.saison))].sort();
   const gruppe = (titel, key, werte, anzeige = x => x) => `<section class="filter-gruppe"><h2>${esc(titel)}</h2><div class="wahl" role="group" aria-label="${esc(titel)}">${werte.map(w => `<button type="button" data-filter="${key}|${esc(w)}" aria-pressed="${filter[key].includes(w)}">${esc(anzeige(w))}</button>`).join('')}</div></section>`;
   return `<div class="kopf"><div class="kopfzeile">${zurueck('Zurück')}<button type="button" class="knopf" data-filter-zurueck>Zurücksetzen</button></div><h1>Filter</h1></div>
+  ${gruppe('Schwerpunkt', 'schwerpunkt', ALLE_SCHWERPUNKTE)}
   ${gruppe('Jugend', 'jugend', JUGENDEN.map(j => j[0]), w => `${w} (${JUGENDEN.find(j => j[0] === w)[1]})`)}
   ${gruppe('Saison', 'saison', saisons)}
   ${gruppe('Qualität', 'qualitaet', QUALITAETEN)}
@@ -395,6 +408,11 @@ document.addEventListener('click', async ev => {
   if ('filterZurueck' in d) { Object.keys(filter).forEach(k => filter[k] = []); neuZeichnen(false); return; }
   if ('anmelden' in d) { try { await anmelden(); } catch (e) { alert('Anmeldung hat nicht geklappt: ' + (e.message || e)); } return; }
   if ('abmelden' in d) { await abmelden(); return; }
+  if (d.esp) {
+    const [id, w] = d.esp.split('|'); const e = einheitVon(id); if (!e) return;
+    const l = [...(e.schwerpunkte || [])]; const i = l.indexOf(w); i >= 0 ? l.splice(i, 1) : l.push(w);
+    await speichere(() => aendern('e', id, { schwerpunkte: l })); return;
+  }
   if (d.qualitaet) { const [art, id, q] = d.qualitaet.split('|'); await speichere(() => aendern(art, id, { qualitaet: q })); return; }
   if (d.merkmal) { await merkmalUmschalten(d.merkmal); return; }
   if (d.aufnehmen) { await aufnehmen(d.aufnehmen); return; }

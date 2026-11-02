@@ -26,3 +26,6 @@ App für iPhone, iPad und Mac (läuft im Browser, auf dem Startbildschirm ablegb
 ## Stand
 
 - 02.11.2026: Saison 2026/27 aufbereitet (32 Einheiten, 65 Übungskarten, 111 Einsätze). Merkmale sind Vorschläge, Phil prüft jede Einheit unter „Prüfen“.
+- 02.11.2026: Alle älteren Saisons (2020/21 bis 2025/26) eingespielt: 344 Einheiten, 624 neue Karten, 44 Karten aus 2026/27 um ältere Varianten ergänzt. Auf Phils Wunsch direkt „aufgenommen“ (ohne Einzelprüfung). Merkmale per Stichwort vorgeschlagen (`werkzeug/merkmale_auto.py`), Phil kann sie jederzeit ändern.
+  Ablauf: `sammle_alle.py` (Quellseiten) → `zuordnung.py` (Abgleich mit den fertigen PDFs, Datum = PDF-Name) → `alle_einheiten.py` (Korrekturen aus den PDFs, Torwarttraining raus) → `karten_alle.py` (Karten über alle Saisons).
+  Neu: Einheiten haben das Feld `schwerpunkte` (aus der SP-Zeile, auf der Einheit-Seite änderbar) und lassen sich danach filtern.
