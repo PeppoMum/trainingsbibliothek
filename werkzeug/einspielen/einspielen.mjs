@@ -55,5 +55,20 @@ async function uebungen() {
   console.log(`uebungen: ${neu} neu, ${erg} um Varianten ergänzt, ${vorhanden.size} waren schon da`);
 }
 
+// Einmalig (Phil, 02.11.2026): alle noch offenen Vorschläge aus 2026/27 aufnehmen. Verworfenes bleibt verworfen.
+async function einmaligAufnehmen() {
+  const marke = db.doc('meta/aufnehmen-2026-27');
+  if ((await marke.get()).exists) return;
+  const ops = [];
+  for (const s of ['einheiten', 'uebungen']) {
+    const snap = await db.collection(s).where('status', '==', 'vorschlag').get();
+    snap.docs.forEach(d => ops.push(['upd', d.ref, { status: 'aufgenommen' }]));
+  }
+  await schreiben(ops);
+  await marke.set({ erledigt: new Date().toISOString(), anzahl: ops.length });
+  console.log(`einmalig aufgenommen: ${ops.length}`);
+}
+
 await einheiten();
 await uebungen();
+await einmaligAufnehmen();
