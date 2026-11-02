@@ -88,6 +88,9 @@ function seiteStart() {
   <section class="abschnitt"><h2>Spielphasen</h2><div class="raster-2">
     ${SPIELPHASEN.map(p => kachel(p, `#/liste/spielphase/${enc(p)}`, zahlTxt(anzahl(u => (u.merkmale?.spielphasen || []).includes(p))))).join('')}
   </div></section>
+  <section class="abschnitt"><h2>Teil der Einheit</h2><div class="raster-2">
+    ${TEILE.map(t => kachel(t, `#/liste/teil/${enc(t)}`, zahlTxt(anzahl(u => teileVonKarte(u).includes(t))))).join('')}
+  </div></section>
   <section class="abschnitt"><h2>Schwerpunkte</h2><div class="raster-2">
     ${SCHWERPUNKT_GRUPPEN.map(g => g.punkte.length === 1 && g.punkte[0][0] === g.name
       ? kachel(g.name, `#/liste/schwerpunkt/${enc(g.name)}`, zahlTxt(anzahl(u => hatSchwerpunkt(u, g.name))))
@@ -131,6 +134,7 @@ function seiteListe(typ, wert) {
     ${weitere.length ? `<section class="abschnitt"><h2>Als weiterer Schwerpunkt</h2>${uebungsListe(weitere)}</section>` : ''}
     ${einheitenMitSchwerpunkt(wert)}`;
   }
+  else if (typ === 'teil') U = U.filter(u => teileVonKarte(u).includes(wert));
   else if (typ === 'form') U = U.filter(u => u.form === wert);
   else if (typ === 'zahl') U = U.filter(u => (u.merkmale?.zahl || []).includes(wert));
   else if (typ === 'art') U = U.filter(u => u.merkmale?.artSpielform === wert);
@@ -244,8 +248,10 @@ function qualitaetWahl(art, obj) {
 function seiteEinheit(id) {
   const e = einheitVon(id);
   if (!e || !sichtbar(e)) return seiteFehlt();
-  return `${einheitKopf(e, 'Einheiten', '#/einheiten')}${bausteinListe(e)}
-  <a class="knopf breit" href="#/einheit/${enc(e.id)}/ganz">${ico.seite}Ganze Trainingseinheit ansehen</a>
+  return `${einheitKopf(e, 'Einheiten', '#/einheiten')}
+  <a class="knopf primaer breit" href="${esc(e.pdf || `pdf/${e.id}.pdf`)}" target="_blank" rel="noopener">${ico.seite}Ganze Trainingseinheit ansehen</a>
+  ${bausteinListe(e)}
+  <details class="aufklappen"><summary>Ganze Trainingseinheit aufklappen ${ico.rechts}</summary><div class="ganz abschnitt">${ganzInhalt(e)}</div></details>
   ${istAdmin() ? schwerpunktWahlEinheit(e) + qualitaetWahl('e', e) : ''}`;
 }
 function schwerpunktWahlEinheit(e) {
@@ -256,7 +262,10 @@ function schwerpunktWahlEinheit(e) {
 function seiteEinheitGanz(id) {
   const e = einheitVon(id);
   if (!e || !sichtbar(e)) return seiteFehlt();
-  const teile = e.bausteine.map(b => {
+  return `${einheitKopf(e, 'Einheit', `#/einheit/${enc(e.id)}`)}<div class="ganz abschnitt">${ganzInhalt(e)}</div>`;
+}
+function ganzInhalt(e) {
+  return e.bausteine.map(b => {
     if (b.art === 'abschnitt') return `<h2>${esc(b.titel)}</h2>`;
     if (b.art === 'hinweis') return `<div class="info">${esc([b.titel, ...(b.zeilen || [])].join(' · '))}</div>`;
     const kopf = `<h3>${esc([b.label ? b.label + ')' : '', b.form, b.titel].filter(Boolean).join(' '))}</h3>`;
@@ -265,7 +274,6 @@ function seiteEinheitGanz(id) {
     if (!v) return `<div class="baustein">${kopf}<div class="unter">Nur Titel auf der Seite</div></div>`;
     return `<div class="baustein">${kopf}${skizzenHtml(v.skizzen)}${teileHtml(v.teile)}</div>`;
   }).join('');
-  return `${einheitKopf(e, 'Einheit', `#/einheit/${enc(e.id)}`)}<div class="ganz abschnitt">${teile}</div>`;
 }
 
 function seiteEinheiten() {
@@ -275,21 +283,35 @@ function seiteEinheiten() {
   ${E.length ? saisons.map(s => `<section class="abschnitt"><h2>Saison ${esc(s)}</h2><div class="gruppe">${E.filter(e => e.saison === s).sort((a, b) => b.datum.localeCompare(a.datum)).map(einheitZeile).join('')}</div></section>`).join('') : '<div class="leer">Noch keine Einheiten aufgenommen.</div>'}`;
 }
 
+const filterOffen = new Set();
 function seiteFilter() {
-  const saisons = [...new Set(daten.einheiten.map(e => e.saison))].sort();
-  const gruppe = (titel, key, werte, anzeige = x => x) => `<section class="filter-gruppe"><h2>${esc(titel)}</h2><div class="wahl" role="group" aria-label="${esc(titel)}">${werte.map(w => `<button type="button" data-filter="${key}|${esc(w)}" aria-pressed="${filter[key].includes(w)}">${esc(anzeige(w))}</button>`).join('')}</div></section>`;
+  const saisons = [...new Set(daten.einheiten.map(e => e.saison))].sort().reverse();
+  const knoepfe = (key, werte, anzeige) => `<div class="wahl klein">${werte.map(w => `<button type="button" data-filter="${key}|${esc(w)}" aria-pressed="${filter[key].includes(w)}">${esc(anzeige(w))}</button>`).join('')}</div>`;
+  const gruppe = (titel, key, werte, anzeige = x => x, inhalt) => {
+    const gew = filter[key];
+    return `<details class="filter-zeile" data-fkey="${key}"${filterOffen.has(key) ? ' open' : ''}><summary><span class="txt"><span class="t">${esc(titel)}</span><span class="s${gew.length ? ' gewaehlt' : ''}">${esc(gew.length ? gew.map(anzeige).join(', ') : 'Alle')}</span></span>${ico.rechts}</summary>
+    <div class="filter-inhalt">${inhalt || knoepfe(key, werte, anzeige)}</div></details>`;
+  };
+  const swInhalt = SCHWERPUNKT_GRUPPEN.map(g => `<div class="filter-unter"><h3>${esc(g.name)}</h3>${knoepfe('schwerpunkt', [...new Set(g.punkte.map(p => p[0]))], x => x)}</div>`).join('');
+  const treffer = daten.uebungen.filter(sichtbar).filter(passtFilter).length;
   return `<div class="kopf"><div class="kopfzeile">${zurueck('Zurück')}<button type="button" class="knopf" data-filter-zurueck>Zurücksetzen</button></div><h1>Filter</h1></div>
-  ${gruppe('Schwerpunkt', 'schwerpunkt', ALLE_SCHWERPUNKTE)}
-  ${gruppe('Jugend', 'jugend', JUGENDEN.map(j => j[0]), w => `${w} (${JUGENDEN.find(j => j[0] === w)[1]})`)}
-  ${gruppe('Saison', 'saison', saisons)}
-  ${gruppe('Qualität', 'qualitaet', QUALITAETEN)}
+  <div class="gruppe filter-liste">
+  ${gruppe('Schwerpunkt', 'schwerpunkt', ALLE_SCHWERPUNKTE, x => x, swInhalt)}
   ${gruppe('Teil der Einheit', 'teil', TEILE)}
   ${gruppe('Form', 'form', FORMEN)}
   ${gruppe('Zahlenverhältnis', 'zahl', ZAHLEN)}
   ${gruppe('Art der Spielform', 'art', ARTEN)}
   ${gruppe('Ort', 'ort', ORTE)}
-  <button type="button" class="knopf primaer breit" data-zurueck>Treffer anzeigen</button>`;
+  ${gruppe('Jugend', 'jugend', JUGENDEN.map(j => j[0]), w => `${w}-Jugend (${JUGENDEN.find(j => j[0] === w)[1]})`)}
+  ${gruppe('Saison', 'saison', saisons)}
+  ${gruppe('Qualität', 'qualitaet', QUALITAETEN)}
+  </div>
+  <div class="filter-fuss"><button type="button" class="knopf primaer breit" data-zurueck>${treffer === 1 ? '1 Übung' : treffer + ' Übungen'} anzeigen</button></div>`;
 }
+document.addEventListener('toggle', ev => {
+  const d = ev.target; if (!d.matches || !d.matches('details[data-fkey]')) return;
+  d.open ? filterOffen.add(d.dataset.fkey) : filterOffen.delete(d.dataset.fkey);
+}, true);
 
 // ---------- Prüfen und Bearbeiten (nur Phil) ----------
 function anmeldeHinweis() {

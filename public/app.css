@@ -122,3 +122,25 @@ dl.merkmale dd{margin:0}
 .ganz .baustein{display:flex;flex-direction:column;gap:10px;padding-bottom:18px;border-bottom:1px solid var(--ln)}
 .ganz .baustein:last-child{border-bottom:0}
 .ganz h3{margin:0;font-size:17px;font-weight:700}
+
+/* Filter als aufklappbare Zeilen */
+.filter-liste details + details{border-top:1px solid var(--ln)}
+.filter-zeile summary{list-style:none;display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 14px 8px 16px;cursor:pointer}
+.filter-zeile summary::-webkit-details-marker{display:none}
+.filter-zeile summary .txt{flex:1;min-width:0;display:flex;flex-direction:column}
+.filter-zeile summary .t{font-size:14px;font-weight:600}
+.filter-zeile summary .s{font-size:12px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.filter-zeile summary .s.gewaehlt{color:var(--ac);font-weight:600}
+.filter-zeile summary > svg{color:var(--mu);transition:transform .15s}
+.filter-zeile[open] summary > svg{transform:rotate(90deg)}
+.filter-inhalt{padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+.filter-unter h3{margin:0 0 6px;font-size:12px;font-weight:600;color:var(--mu)}
+.filter-fuss{position:sticky;bottom:calc(var(--nav-h) + 24px + env(safe-area-inset-bottom));z-index:5}
+@media (min-width:900px){ .filter-fuss{bottom:24px} }
+/* Ganze Einheit zum Aufklappen */
+.aufklappen{border-radius:var(--r);background:var(--card);border:1px solid var(--ln)}
+.aufklappen summary{list-style:none;display:flex;align-items:center;justify-content:space-between;min-height:52px;padding:8px 14px 8px 16px;font-size:14px;font-weight:600;cursor:pointer}
+.aufklappen summary::-webkit-details-marker{display:none}
+.aufklappen summary svg{color:var(--mu);transition:transform .15s}
+.aufklappen[open] summary svg{transform:rotate(90deg)}
+.aufklappen .ganz{padding:4px 16px 16px}

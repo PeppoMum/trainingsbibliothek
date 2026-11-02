@@ -1,5 +1,5 @@
 // Offline-Fähigkeit: App-Gerüst und Skizzen werden auf dem Gerät gespeichert.
-const CACHE = 'tb-v3';
+const CACHE = 'tb-v4';
 const GERUEST = ['./', 'index.html', 'app.css', 'app.js', 'daten.js', 'kategorien.js', 'firebase-config.js', 'manifest.webmanifest', 'icons/icon-192.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(GERUEST)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== CACHE).map(x => caches.delete(x)))).then(() => self.clients.claim())); });
