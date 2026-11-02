@@ -11,4 +11,4 @@ export const FIREBASE_CONFIG = {
 };
 
 // Wer ändern darf (Google-Konto). Muss mit firestore.rules übereinstimmen.
-export const ADMIN_EMAILS = [];
+export const ADMIN_EMAILS = ['phil.mumbeck@gmail.com'];

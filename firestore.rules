@@ -5,7 +5,7 @@ service cloud.firestore {
     function istAdmin() {
       return request.auth != null
         && request.auth.token.email_verified == true
-        && request.auth.token.email in ['ADMIN_EMAIL_HIER'];
+        && request.auth.token.email in ['phil.mumbeck@gmail.com'];
     }
     match /einheiten/{id} {
       allow read: if true;
