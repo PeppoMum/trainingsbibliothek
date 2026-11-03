@@ -1,4 +1,5 @@
 import { daten, starten, beiAenderung, anmelden, abmelden, aendern, aendernMehrere } from './daten.js';
+import { pdfHolen, jspdfVorbereiten, teilen, dateiname, uebungAlsPdf } from './export.js';
 import { SPIELPHASEN, SCHWERPUNKT_GRUPPEN, ALLE_SCHWERPUNKTE, ZWEIKAMPF_UNTERPUNKTE, FORMEN, ZAHLEN, ARTEN, ORTE, JUGENDEN, QUALITAETEN, TEILE, teilVon } from './kategorien.js';
 
 const $inhalt = document.getElementById('inhalt');
@@ -13,6 +14,7 @@ const ico = {
   suche: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
   filter: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>',
   seite: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/></svg>',
+  teilen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 13v7h14v-7"/></svg>',
 };
 function datumDE(iso) { const [y, m, d] = iso.split('-'); return `${d}.${m}.${y}`; }
 function wochentag(iso) { return WOCHENTAGE[new Date(iso + 'T12:00:00').getDay()]; }
@@ -173,9 +175,9 @@ function skizzenHtml(sk) {
   if (!sk || !sk.length) return '<div class="keine-skizze">Keine Skizze auf der Seite</div>';
   return `<div class="skizzen">${sk.map(s => `<button type="button" class="skizze" data-gross="${esc(s)}" aria-label="Skizze vergrößern"><img src="${esc(s)}" alt="Skizze" loading="lazy"></button>`).join('')}</div>`;
 }
-function merkmaleHtml(u) {
+function merkmaleZeilen(u) {
   const m = u.merkmale || {};
-  const zeilen = [
+  return [
     ['Spielphase', (m.spielphasen || []).join(', ')],
     ['Haupt-Schwerpunkt', m.hauptschwerpunkt + ((m.zweikampf || []).length && m.hauptschwerpunkt === '1 gegen 1 und Zweikampf' ? ` (${m.zweikampf.join(', ')})` : '')],
     ['Weitere', (m.schwerpunkte || []).map(s => s === '1 gegen 1 und Zweikampf' && (m.zweikampf || []).length ? `${s} (${m.zweikampf.join(', ')})` : s).join(', ')],
@@ -184,6 +186,9 @@ function merkmaleHtml(u) {
     ['Art der Spielform', m.artSpielform],
     ['Ort', (m.ort || []).join(', ')],
   ].filter(z => z[1]);
+}
+function merkmaleHtml(u) {
+  const zeilen = merkmaleZeilen(u);
   return `<section class="karte"><h2>Merkmale</h2><dl class="merkmale">${zeilen.map(([a, b]) => `<dt>${esc(a)}</dt><dd>${esc(b)}</dd>`).join('')}</dl></section>`;
 }
 
@@ -198,7 +203,7 @@ function seiteUebung(id) {
     + (u.status === 'vorschlag' ? '<span class="chip vorschlag">Vorschlag, noch nicht aufgenommen</span>' : '');
   const variantenWahl = vs.length > 1 ? `<section class="abschnitt"><h2>Eingesetzt (${vs.length}×)</h2><div class="varianten" role="group" aria-label="Variante wählen">${vs.map((x, i) => `<button type="button" data-variante="${i}" aria-pressed="${i === vi}">${datumDE(x.datum)}</button>`).join('')}</div>${v.titel !== u.titel ? `<div class="unter">Auf dieser Seite: ${esc(v.titel)}</div>` : ''}</section>` : '';
   const e = einheitVon(v.einheit);
-  return `<div class="kopf"><div class="kopfzeile">${zurueck('Zurück')}${istAdmin() ? `<a class="knopf" href="#/bearbeiten/${enc(u.id)}">Bearbeiten</a>` : ''}</div>
+  return `<div class="kopf"><div class="kopfzeile">${zurueck('Zurück')}<div class="knopfreihe"><button type="button" class="knopf" data-export="uebung|${esc(u.id)}">${ico.teilen}Exportieren</button>${istAdmin() ? `<a class="knopf" href="#/bearbeiten/${enc(u.id)}">Bearbeiten</a>` : ''}</div></div>
     <h1>${esc(u.titel)}</h1><div class="chips">${chips}</div></div>
   ${variantenWahl}
   <div class="uebung-layout"><div class="abschnitt">${skizzenHtml(v.skizzen)}</div>
@@ -245,11 +250,13 @@ function qualitaetWahl(art, obj) {
   return `<section class="abschnitt"><h2>Qualität ändern</h2><div class="wahl klein" role="group" aria-label="Qualität">${QUALITAETEN.map(q => `<button type="button" data-qualitaet="${art}|${esc(obj.id)}|${q}" aria-pressed="${obj.qualitaet === q}">${q}</button>`).join('')}</div></section>`;
 }
 
+const pdfVon = e => e.pdf || `pdf/${e.id}.pdf`;
 function seiteEinheit(id) {
   const e = einheitVon(id);
   if (!e || !sichtbar(e)) return seiteFehlt();
   return `${einheitKopf(e, 'Einheiten', '#/einheiten')}
-  <a class="knopf primaer breit" href="${esc(e.pdf || `pdf/${e.id}.pdf`)}" target="_blank" rel="noopener">${ico.seite}Ganze Trainingseinheit ansehen</a>
+  <div class="knopfspalte"><a class="knopf primaer breit" href="${esc(pdfVon(e))}" target="_blank" rel="noopener">${ico.seite}Ganze Trainingseinheit ansehen</a>
+  <button type="button" class="knopf breit" data-export="einheit|${esc(e.id)}">${ico.teilen}Exportieren</button></div>
   ${bausteinListe(e)}
   <details class="aufklappen"><summary>Ganze Trainingseinheit aufklappen ${ico.rechts}</summary><div class="ganz abschnitt">${ganzInhalt(e)}</div></details>
   ${istAdmin() ? schwerpunktWahlEinheit(e) + qualitaetWahl('e', e) : ''}`;
@@ -376,6 +383,16 @@ function seiteBearbeiten(id) {
   <button type="button" class="knopf primaer breit" data-zurueck>Fertig</button>`;
 }
 
+// Schwerpunktlisten: nur abgelegt zum Ansehen und Exportieren.
+const LISTEN = [
+  { id: 'u13', titel: 'Schwerpunkte U13', jugend: 'D-Jugend', stand: 'Juli 2026', pdf: 'listen/schwerpunkte-u13.pdf' },
+  { id: 'u14-u15', titel: 'Schwerpunkte U14/U15', jugend: 'C-Jugend', stand: 'Juli 2024', pdf: 'listen/schwerpunkte-u14-u15.pdf' },
+];
+function seiteListen() {
+  return `<div class="kopf"><h1>Schwerpunktlisten</h1></div>
+  <div class="gruppe listen">${LISTEN.map(l => `<div class="listenzeile"><a class="zeile" href="${esc(l.pdf)}" target="_blank" rel="noopener"><span class="pdf-marke">${ico.seite}</span><span class="txt"><span class="t">${esc(l.titel)}</span><span class="s">${esc(l.jugend)} · Stand ${esc(l.stand)}</span></span></a><button type="button" class="knopf-icon" data-export="liste|${esc(l.id)}" aria-label="${esc(l.titel)} exportieren">${ico.teilen}</button></div>`).join('')}</div>`;
+}
+
 function seiteFehlt() { return `<div class="kopf">${zurueck('Start', '#/')}<h1>Nicht gefunden</h1></div><div class="leer">Diese Seite gibt es nicht oder sie ist noch nicht aufgenommen.</div>`; }
 
 // ---------- Router ----------
@@ -393,6 +410,7 @@ function route() {
   else if (p[0] === 'einheit' && p[2] === 'ganz') { html = seiteEinheitGanz(p[1]); nav = 'einheiten'; }
   else if (p[0] === 'einheit') { html = seiteEinheit(p[1]); nav = 'einheiten'; }
   else if (p[0] === 'einheiten') { html = seiteEinheiten(); nav = 'einheiten'; }
+  else if (p[0] === 'listen') { html = seiteListen(); nav = 'listen'; }
   else if (p[0] === 'filter') html = seiteFilter();
   else if (p[0] === 'pruefen' && p[1]) { html = seitePruefenEinheit(p[1]); nav = 'pruefen'; }
   else if (p[0] === 'pruefen') { html = seitePruefen(); nav = 'pruefen'; }
@@ -403,6 +421,7 @@ function route() {
   const z = document.getElementById('pruef-zaehler');
   const offen = istAdmin() ? daten.einheiten.filter(e => e.status === 'vorschlag').length : 0;
   z.hidden = !offen; z.textContent = offen;
+  exportVorbereiten();
 }
 let letzterHash = null;
 function neuZeichnen(scrollOben) {
@@ -411,6 +430,48 @@ function neuZeichnen(scrollOben) {
   if (scrollOben) { window.scrollTo(0, 0); $inhalt.focus({ preventScroll: true }); } else window.scrollTo(0, y);
 }
 window.addEventListener('hashchange', () => { neuZeichnen(location.hash !== letzterHash); letzterHash = location.hash; });
+
+// ---------- Exportieren ----------
+function exportZiel(wert) {
+  const [art, id] = wert.split('|');
+  if (art === 'einheit') { const e = einheitVon(id); return e && { pdf: pdfVon(e), name: dateiname(`Training ${datumDE(e.datum)}${e.nummer ? ' ' + e.nummer : ''}`) }; }
+  if (art === 'liste') { const l = LISTEN.find(x => x.id === id); return l && { pdf: l.pdf, name: dateiname(`${l.titel} (Stand ${l.stand})`) }; }
+  if (art === 'uebung') return { uebung: uebungVon(id) };
+  return null;
+}
+function exportVorbereiten() {
+  document.querySelectorAll('[data-export]').forEach(b => {
+    const z = exportZiel(b.dataset.export);
+    if (z && z.pdf) pdfHolen(z.pdf).catch(() => {});
+    if (z && z.uebung) jspdfVorbereiten().catch(() => {});
+  });
+}
+async function exportieren(knopf, wert) {
+  const z = exportZiel(wert); if (!z) return;
+  const alt = knopf.innerHTML;
+  knopf.disabled = true;
+  try {
+    if (z.pdf) { await teilen(await pdfHolen(z.pdf), z.name); return; }
+    const u = z.uebung; if (!u) return;
+    if (knopf.classList.contains('knopf')) knopf.innerHTML = `${ico.teilen}Wird erstellt …`;
+    const vs = [...u.varianten].sort((a, b) => b.datum.localeCompare(a.datum));
+    const v = vs[Math.min(gewaehlteVariante[u.id] || 0, vs.length - 1)];
+    const e = einheitVon(v.einheit);
+    const blob = await uebungAlsPdf({
+      titel: u.titel,
+      herkunft: e ? [`Aus der Einheit vom ${datumDE(e.datum)}`, v.label, e.mannschaft].filter(Boolean).join(' · ') : '',
+      merkmale: [['Teil der Einheit', teileVonKarte(u).join(', ')], ...merkmaleZeilen(u), ['Jugend', (u.jugend || []).map(jugendText).join(', ')]],
+      skizzen: v.skizzen || [],
+      teile: v.teile || [],
+    });
+    knopf.innerHTML = alt;
+    await teilen(blob, dateiname(`${u.titel}${e ? ' ' + datumDE(e.datum) : ''}`));
+  } catch (err) {
+    alert('Exportieren hat nicht geklappt: ' + (err.message || err));
+  } finally {
+    knopf.innerHTML = alt; knopf.disabled = false;
+  }
+}
 
 // ---------- Ereignisse ----------
 document.addEventListener('submit', ev => {
@@ -422,6 +483,7 @@ document.addEventListener('submit', ev => {
 document.addEventListener('click', async ev => {
   const t = ev.target.closest('button, a'); if (!t) return;
   const d = t.dataset;
+  if (d.export) { exportieren(t, d.export); return; }
   if ('zurueck' in d) { if (history.length > 1) history.back(); else location.hash = '#/'; return; }
   if (d.gross) { const vb = document.getElementById('vollbild'); vb.querySelector('img').src = d.gross; vb.hidden = false; return; }
   if (t.classList.contains('vollbild-zu')) { document.getElementById('vollbild').hidden = true; return; }
