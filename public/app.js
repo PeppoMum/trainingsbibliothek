@@ -221,6 +221,8 @@ function offenSet(gruppen) {
   if (!offen) { const g = lesen(ABLAGE.offen, null); offen = Array.isArray(g) ? new Set(g) : standardOffen(gruppen); }
   return offen;
 }
+// „Alles aufklappen“: alle Saisons offen, Monatsüberschriften fallen weg
+const allesAuf = () => lesen(ABLAGE.allesAuf, false) === true;
 function einheitenGefiltert() { return alleEinheiten().filter(passtE); }
 function ansichtSchalter(akt) {
   return `<div class="umschalter ansicht" role="group" aria-label="Ansicht"><a href="#/einheiten/liste" aria-pressed="${akt === 'liste'}" role="button">Liste</a><a href="#/einheiten/monat" aria-pressed="${akt === 'monat'}" role="button">Monat</a></div>`;
@@ -229,13 +231,14 @@ function einheitenListe() {
   const gruppen = L.saisonGruppen(einheitenGefiltert());
   if (!gruppen.length) return `<div class="leer">${filterAktiv() ? 'Keine Einheit passt zum Filter.' : 'Noch keine Einheiten aufgenommen.'}</div>`;
   const o = offenSet(gruppen);
-  return `<div class="saisons">${gruppen.map(g => {
+  const alles = allesAuf();
+  return `<div class="saisons"><div class="alles-leiste"><button type="button" class="alles-knopf" data-alles-auf="${alles ? 'zu' : 'auf'}">${alles ? 'Alles zuklappen' : 'Alles aufklappen'}</button></div>${gruppen.map(g => {
     const sk = 's:' + g.saison, sAuf = o.has(sk);
     return `<div class="gruppe saison"><button type="button" class="klappzeile gross" data-auf="${esc(sk)}" aria-expanded="${sAuf}">${ico.klappe}<span class="txt"><span class="t">Saison ${esc(g.saison)}</span><span class="s">${esc([einheitenText(g.anzahl), g.mannschaften.join(', ')].filter(Boolean).join(' · '))}</span></span></button>
-    ${sAuf ? g.monate.map(m => {
+    ${!sAuf ? '' : alles ? g.monate.flatMap(m => m.einheiten).map(e => einheitZeile(e)).join('') : g.monate.map(m => {
       const mk = 'm:' + m.ym, mAuf = o.has(mk);
       return `<button type="button" class="klappzeile" data-auf="${esc(mk)}" aria-expanded="${mAuf}">${ico.klappe}<span class="txt"><span class="t">${esc(L.monatName(m.ym))}</span></span><span class="zahl">${m.einheiten.length}</span></button>${mAuf ? m.einheiten.map(e => einheitZeile(e)).join('') : ''}`;
-    }).join('') : ''}</div>`;
+    }).join('')}</div>`;
   }).join('')}</div>`;
 }
 const heuteIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -520,6 +523,11 @@ document.addEventListener('click', async ev => {
     const o = offen || new Set();
     o.has(d.auf) ? o.delete(d.auf) : o.add(d.auf);
     offen = o; schreiben(ABLAGE.offen, [...o]); neuZeichnen(false); return;
+  }
+  if (d.allesAuf) {
+    const auf = d.allesAuf === 'auf';
+    offen = new Set(auf ? L.saisonGruppen(einheitenGefiltert()).map(g => 's:' + g.saison) : []);
+    schreiben(ABLAGE.offen, [...offen]); schreiben(ABLAGE.allesAuf, auf); neuZeichnen(false); return;
   }
   if (d.monatAuf) { monatAuf.has(d.monatAuf) ? monatAuf.delete(d.monatAuf) : monatAuf.add(d.monatAuf); neuZeichnen(false); return; }
   if (d.merken) { merkenUmschalten(d.merken); neuZeichnen(false); return; }

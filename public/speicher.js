@@ -15,5 +15,6 @@ export const ABLAGE = {
   filter: 'tb-filter',
   sortierung: 'tb-sortierung',
   offen: 'tb-offen',
+  allesAuf: 'tb-alles-auf',
   ansicht: 'tb-ansicht',
 };
