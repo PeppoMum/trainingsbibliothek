@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Trainingsbibliothek</title>
-<meta name="description" content="Trainingsbibliothek TuS Haltern am See: Einheiten und Übungen ablegen, suchen und wiederfinden.">
+<meta name="description" content="Trainingseinheiten und Übungen ablegen, suchen und wiederfinden.">
+<meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#F2F5FA" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,25 +15,25 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap">
+<link rel="preload" href="fonts/inter-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
 <div id="app" class="app">
   <nav class="nav" aria-label="Hauptnavigation">
-    <div class="nav-marke">Trainingsbibliothek</div>
+    <a class="nav-marke" href="#/">Trainingsbibliothek</a>
     <div class="nav-links">
     <a href="#/" data-nav="start"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/></svg><span>Start</span></a>
     <a href="#/einheiten" data-nav="einheiten"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg><span>Einheiten</span></a>
+    <a href="#/merkliste" data-nav="merkliste"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v16l-5-4-5 4z"/></svg><span>Merkliste</span></a>
     <a href="#/listen" data-nav="listen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h6l2 2h10v10H3z"/></svg><span>Listen</span></a>
     <a href="#/pruefen" data-nav="pruefen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h10l4 4v12H5z"/><path d="M9 14l2 2 4-4"/></svg><span>Prüfen</span><b class="zaehler" id="pruef-zaehler" hidden></b></a>
     </div>
+    <span class="nav-rest"></span>
   </nav>
-  <main id="inhalt" class="inhalt" tabindex="-1"><p class="laden">Lädt …</p></main>
+  <main id="inhalt" class="inhalt" tabindex="-1"><div class="laden" role="status">Lädt …</div></main>
 </div>
-<div id="vollbild" class="vollbild" hidden>
+<div id="vollbild" class="vollbild" hidden role="dialog" aria-label="Skizze groß">
   <button type="button" class="vollbild-zu" aria-label="Schließen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   <img alt="Skizze groß">
 </div>

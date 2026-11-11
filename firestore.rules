@@ -1,11 +1,12 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Ansehen: jeder mit dem Link. Ändern: nur das eingetragene Google-Konto.
+    // Ansehen: jeder mit dem Link. Ändern und neue Karten anlegen: nur das eingetragene Google-Konto.
+    // Das Konto steht hier nur als Prüfsumme (SHA-256, hexadezimal) der E-Mail-Adresse, siehe public/firebase-config.js.
     function istAdmin() {
       return request.auth != null
         && request.auth.token.email_verified == true
-        && request.auth.token.email in ['phil.mumbeck@gmail.com'];
+        && hashing.sha256(request.auth.token.email.lower()).toHexString().lower() in ['c34b232ece26bb21d6de23a4a8e117de9f99cc6c76bfb004d9d71023b6cc7b6a'];
     }
     match /einheiten/{id} {
       allow read: if true;
@@ -14,8 +15,8 @@ service cloud.firestore {
     }
     match /uebungen/{id} {
       allow read: if true;
-      allow update: if istAdmin();
-      allow create, delete: if false;
+      allow create, update: if istAdmin();
+      allow delete: if false;
     }
   }
 }
