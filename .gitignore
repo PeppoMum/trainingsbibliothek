@@ -4,3 +4,5 @@ node_modules/
 .DS_Store
 konto*.json
 *-firebase-adminsdk-*.json
+public/stand/
+__pycache__/

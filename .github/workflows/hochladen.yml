@@ -3,10 +3,33 @@ name: App hochladen
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
+  schedule:
+    # Jede Nacht: Grundbestand neu schreiben, aber nur wenn Phil seitdem etwas geändert hat
+    - cron: '15 2 * * *'
+
+concurrency:
+  group: hochladen
+  cancel-in-progress: false
 
 jobs:
+  pruefen:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Automatischer Test
+        run: npm test
+
   hochladen:
+    needs: pruefen
+    if: always() && github.event_name != 'pull_request' && (needs.pruefen.result == 'success' || needs.pruefen.result == 'skipped')
     runs-on: ubuntu-latest
     env:
       KONTO: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -20,21 +43,24 @@ jobs:
         if: env.KONTO != ''
         with:
           node-version: 22
-      - name: App und Regeln hochladen
+      - name: Vorschläge einspielen und Grundbestand schreiben
+        id: stand
         if: env.KONTO != ''
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          NUR_STAND: ${{ github.event_name == 'schedule' && '1' || '' }}
+          STAND_URL: https://trainingsbibliothek.web.app/stand/stand.json
+        run: |
+          cd werkzeug/einspielen
+          npm install --no-audit --no-fund
+          node einspielen.mjs
+      - name: App und Regeln hochladen
+        if: env.KONTO != '' && steps.stand.outputs.weiter == 'true'
         run: |
           printf '%s' "$KONTO" > "$RUNNER_TEMP/konto.json"
           export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/konto.json"
           PROJEKT=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS)).project_id)")
           npx --yes firebase-tools@13.29.1 deploy --only hosting,firestore:rules --project "$PROJEKT" --non-interactive
-      - name: Neue Vorschläge einspielen
-        if: env.KONTO != ''
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: |
-          cd werkzeug/einspielen
-          npm install --no-audit --no-fund
-          node einspielen.mjs
       - name: Aufräumen
         if: always()
         run: rm -f "$RUNNER_TEMP/konto.json"

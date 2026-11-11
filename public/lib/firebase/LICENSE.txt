@@ -1,0 +1,4 @@
+Firebase JavaScript SDK 11.0.2 (firebase-app.js, firebase-auth.js, firebase-firestore-lite.js)
+Copyright Google LLC
+Licensed under the Apache License, Version 2.0: https://www.apache.org/licenses/LICENSE-2.0
+Quelle: https://github.com/firebase/firebase-js-sdk (npm-Paket firebase@11.0.2). Einzige Änderung: Verweis auf firebase-app.js zeigt auf die Datei hier statt auf gstatic.com.
