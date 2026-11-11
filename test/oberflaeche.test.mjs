@@ -127,3 +127,18 @@ test('Prüfen: angesehen und weiter, Haken bleiben beim Neuzeichnen', async () =
   assert.match(await page.locator('.abkopf .unter').first().textContent(), /^1 von/);
   await ctx.close();
 });
+
+test('Einheiten: alles auf- und zuklappen, aufgeklappt ohne Monate', async () => {
+  const { ctx, page } = await seiteOeffnen(390);
+  await geh(page, '#/einheiten/liste');
+  await page.click('[data-alles-auf="auf"]'); await page.waitForTimeout(150);
+  const saisons = await page.locator('.saisons .gruppe.saison').count();
+  assert.equal(await page.locator('.saisons [aria-expanded="true"]').count(), saisons, 'alle Saisons offen');
+  assert.equal(await page.locator('.saisons .klappzeile:not(.gross)').count(), 0, 'keine Monatszeilen');
+  assert.ok(await page.locator('.saisons a[href^="#/einheit/"]').count() > 0, 'Einheiten direkt sichtbar');
+  await page.reload(); await page.waitForSelector('[data-alles-auf="zu"]');
+  await page.click('[data-alles-auf="zu"]'); await page.waitForTimeout(150);
+  assert.equal(await page.locator('.saisons [aria-expanded="true"]').count(), 0, 'alles zu');
+  assert.equal(await page.locator('.saisons a[href^="#/einheit/"]').count(), 0);
+  await ctx.close();
+});

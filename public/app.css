@@ -237,6 +237,8 @@ dl.merkmale dd{margin:0;overflow-wrap:anywhere}
 
 /* ---------- Einheiten: Saisons und Monate ---------- */
 .saisons{display:flex;flex-direction:column;gap:12px;max-width:820px}
+.alles-leiste{display:flex;justify-content:flex-end;margin:-4px 0 -6px}
+.alles-knopf{height:var(--ctl);padding:0 4px;border:0;background:none;color:var(--ac);font-weight:600;font-size:14px;cursor:pointer}
 .klappzeile{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:8px 16px;border:0;background:none;text-align:left;cursor:pointer;color:var(--tx);font-size:14px}
 .klappzeile .txt{flex:1;min-width:0;display:flex;flex-direction:column}
 .klappzeile .t{font-weight:600}
