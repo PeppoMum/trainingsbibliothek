@@ -23,7 +23,8 @@ jobs:
         with:
           node-version: 22
       - run: npm ci --no-audit --no-fund
-      - run: npx playwright install --with-deps chromium
+      # Erst mit Systempaketen; sind die Ubuntu-Server nicht erreichbar, nur den Browser laden
+      - run: npx playwright install --with-deps chromium || npx playwright install chromium
       - name: Automatischer Test
         run: npm test
 
